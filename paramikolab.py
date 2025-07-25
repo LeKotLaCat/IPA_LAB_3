@@ -1,6 +1,6 @@
 """
-Example of using Paramiko on Windows to connect to multiple devices,
-enter enable mode, and run multiple commands.
+Connects to multiple devices, backs up their running configuration
+to a single timestamped file, and also shows the IP interface status.
 """
 
 import time
@@ -8,11 +8,14 @@ import paramiko
 import os
 import socket
 from pathlib import Path
+from datetime import datetime ### NEW ###
 
 # --- Configuration ---
 USERNAME = "admin"
-PASSWORD = "cisco"  # This is the 'enable' password
-DEVICE_IPS = ["10.30.6.27", "172.31.21.2", "172.31.21.3", "172.31.21.4", "172.31.21.5"]
+PASSWORD = "cisco"  # Enable password
+DEVICE_IPS = ["10.30.6.27"]
+#DEVICE_IPS = ["10.30.6.27", "172.31.21.2", "172.31.21.3", "172.31.21.4", "172.31.21.5"]
+OUTPUT_FILENAME = "copy-running-config.txt" ### NEW: Define the output filename ###
 
 # --- Load SSH Private Key ---
 try:
@@ -22,83 +25,95 @@ try:
 except (FileNotFoundError, paramiko.ssh_exception.PasswordRequiredException) as e:
     print(f"Error loading SSH key: {e}")
     print("Script will terminate. Please ensure your key exists and is not password-protected.")
-    PRIVATE_KEY = None
-    exit() # Exit if the key cannot be loaded
+    exit()
 
-# --- Script Execution ---
-for ip in DEVICE_IPS:
-    print(f"\n{'='*20} [Connecting to {ip}] {'='*20}")
-    
-    client = paramiko.SSHClient()
-    client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+# ### NEW: Open the file before the loop starts ###
+# 'w' mode overwrites the file if it exists, creating a fresh backup.
+# 'encoding='utf-8'' handles all characters properly.
+with open(OUTPUT_FILENAME, 'w', encoding='utf-8') as backup_file:
+    now = datetime.now()
+    timestamp = now.strftime("%Y-%m-%d %H:%M:%S")
+    backup_file.write(f"--- Network Device Configuration Backup taken at {timestamp} ---\n\n")
+    print(f"✅ Backup file created: {OUTPUT_FILENAME}")
 
-    try:
-        # The connection parameters from your working script
-        client.connect(
-            hostname=ip,
-            username=USERNAME,
-            pkey=PRIVATE_KEY,
-            look_for_keys=False,
-            allow_agent=False,
-            timeout=15,
-            disabled_algorithms=dict(
-                pubkeys=["rsa-sha2-256", "rsa-sha2-512"],
-                kex=[
-                    "diffie-hellman-group1-sha1", "diffie-hellman-group14-sha256",
-                    "diffie-hellman-group16-sha512", "diffie-hellman-group18-sha512",
-                    "diffie-hellman-group-exchange-sha256", "ecdh-sha2-nistp256",
-                    "ecdh-sha2-nistp384", "ecdh-sha2-nistp521",
-                    "curve25519-sha256@libssh.org", "curve25519-sha256",
-                ],
-                hostkeys=[
-                    "ssh-ed25519", "ecdsa-sha2-nistp256",
-                    "ecdsa-sha2-nistp384", "ecdsa-sha2-nistp521"
-                ],
-            ),
-        )
-        print(f"✅ Successfully connected to {ip}")
+    # --- Script Execution ---
+    for ip in DEVICE_IPS:
+        print(f"\n{'='*20} [Processing {ip}] {'='*20}")
+        
+        client = paramiko.SSHClient()
+        client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
 
-        with client.invoke_shell() as ssh:
-            # --- Setup terminal and enter enable mode ---
-            ssh.send("terminal length 0\n")
-            time.sleep(1)
-            ssh.recv(65535) # Clear initial buffer
+        try:
+            # Using the connection parameters that work for you
+            client.connect(
+                hostname=ip,
+                username=USERNAME,
+                pkey=PRIVATE_KEY,
+                look_for_keys=False,
+                allow_agent=False,
+                timeout=15,
+                disabled_algorithms=dict(
+                    pubkeys=["rsa-sha2-256", "rsa-sha2-512"],
+                    kex=[
+                        "diffie-hellman-group1-sha1", "diffie-hellman-group14-sha256",
+                        "diffie-hellman-group16-sha512", "diffie-hellman-group18-sha512",
+                        "diffie-hellman-group-exchange-sha256", "ecdh-sha2-nistp256",
+                        "ecdh-sha2-nistp384", "ecdh-sha2-nistp521",
+                        "curve25519-sha256@libssh.org", "curve25519-sha256",
+                    ],
+                    hostkeys=[
+                        "ssh-ed25519", "ecdsa-sha2-nistp256",
+                        "ecdsa-sha2-nistp384", "ecdsa-sha2-nistp521"
+                    ],
+                ),
+            )
+            print(f"✅ Successfully connected to {ip}")
 
-            # ssh.send("enable\n")
-            # time.sleep(1)
-            # ssh.recv(65535) # Clear buffer after 'enable'
+            with client.invoke_shell() as ssh:
+                # Setup terminal and enter enable mode
+                ssh.send("terminal length 0\n")
+                time.sleep(1)
+                ssh.recv(65535)
 
-            # ssh.send(f"{PASSWORD}\n")
-            # time.sleep(1)
-            # output = ssh.recv(65535).decode('utf-8', 'ignore')
-            # if "#" not in output: # Check if we successfully entered enable mode
-            #     print(f"❌ Failed to enter enable mode on {ip}. Check password.")
-            #     continue # Skip to the next device
+                ssh.send("enable\n")
+                time.sleep(1)
+                ssh.recv(65535)
 
-            # print("✅ Entered enable mode successfully.")
+                ssh.send(f"{PASSWORD}\n")
+                time.sleep(1)
+                output = ssh.recv(65535).decode('utf-8', 'ignore')
+                if "#" not in output:
+                    print(f"❌ Failed to enter enable mode on {ip}. Check password.")
+                    continue
 
-            # # --- Command 1: show ip interface brief ---
-            # print("--- Running: show ip interface brief ---")
-            # ssh.send("show ip interface brief\n")
-            # time.sleep(2)
-            # result_int_br = ssh.recv(65535).decode('utf-8', 'ignore')
-            # print(result_int_br)
+                print("✅ Entered enable mode successfully.")
 
-            # --- Command 2: show running-config ---
-            # print("\n--- Running: show running-config ---")
-            # ssh.send("show running-config\n")
-            # time.sleep(4) # Give more time for this long command
-            # result_run_config = ssh.recv(65535).decode('utf-8', 'ignore')
-            # print(result_run_config)
+                # Command 1: show ip interface brief (only print to screen)
+                print("\n--- [On Screen] show ip interface brief ---")
+                ssh.send("show ip interface brief\n")
+                time.sleep(2)
+                result_int_br = ssh.recv(65535).decode('utf-8', 'ignore')
+                print(result_int_br)
 
-    except paramiko.AuthenticationException:
-        print(f"❌ Authentication failed for {ip}. Check username or SSH key.")
-    except (socket.timeout, TimeoutError):
-        print(f"❌ Connection timed out for {ip}. Device might be unreachable.")
-    except Exception as e:
-        print(f"❌ An unexpected error occurred for {ip}: {e}")
-    finally:
-        # Always close the connection
-        if client.get_transport() and client.get_transport().is_active():
-            client.close()
-            print(f"✅ Connection to {ip} closed.")
+                # Command 2: show running-config (save to file)
+                print("--- [To File] show running-config ---")
+                ssh.send("show running-config\n")
+                time.sleep(4)
+                result_run_config = ssh.recv(65535).decode('utf-8', 'ignore')
+                
+                # ### NEW: Write the output to the backup file ###
+                header = f"\n{'='*20} [Running Config for {ip}] {'='*20}\n\n"
+                backup_file.write(header)
+                backup_file.write(result_run_config)
+                print(f"✅ Configuration for {ip} has been saved to the file.")
+
+
+        except Exception as e:
+            print(f"❌ An error occurred for {ip}: {e}")
+        finally:
+            if client.get_transport() and client.get_transport().is_active():
+                client.close()
+                print(f"✅ Connection to {ip} closed.")
+
+print(f"\n--- SCRIPT COMPLETE ---")
+print(f"All configurations have been backed up to '{OUTPUT_FILENAME}'.")
