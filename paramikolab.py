@@ -1,87 +1,104 @@
+"""
+Example of using Paramiko on Windows to connect to multiple devices,
+enter enable mode, and run multiple commands.
+"""
+
 import time
 import paramiko
 import os
+import socket
+from pathlib import Path
 
-# --- การตั้งค่า ---
-username = 'admin'
-# ระบุตำแหน่งของไฟล์ Private Key ให้ถูกต้อง (ใช้ os.path.expanduser('~') เพื่อความสะดวก)
-key_filename = os.path.expanduser('~/.ssh/id_rsa') 
+# --- Configuration ---
+USERNAME = "admin"
+PASSWORD = "cisco"  # This is the 'enable' password
+DEVICE_IPS = ["10.30.6.27", "172.31.21.2", "172.31.21.3", "172.31.21.4", "172.31.21.5"]
 
-# รายชื่อ IP ของอุปกรณ์ทั้งหมด
-devices_ip = ["10.30.6.71","172.31.112.4", "172.31.112.5", "172.31.112.6"]
-# devices_ip = ["10.30.6.71"] # <--- ใช้ IP จากตัวอย่างของคุณเพื่อทดสอบ
+# --- Load SSH Private Key ---
+try:
+    KEY_PATH = str(Path.home() / ".ssh" / "id_rsa")
+    PRIVATE_KEY = paramiko.RSAKey.from_private_key_file(KEY_PATH)
+    print(f"Successfully loaded SSH key from: {KEY_PATH}")
+except (FileNotFoundError, paramiko.ssh_exception.PasswordRequiredException) as e:
+    print(f"Error loading SSH key: {e}")
+    print("Script will terminate. Please ensure your key exists and is not password-protected.")
+    PRIVATE_KEY = None
+    exit() # Exit if the key cannot be loaded
 
-# --- โค้ดหลัก ---
-for ip in devices_ip:
+# --- Script Execution ---
+for ip in DEVICE_IPS:
+    print(f"\n{'='*20} [Connecting to {ip}] {'='*20}")
+    
+    client = paramiko.SSHClient()
+    client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+
     try:
-        client = paramiko.SSHClient()
-        client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-
-        print(f"Connecting to {ip}...")
-
-        # *** จุดสำคัญ: เพิ่ม Option สำหรับอัลกอริทึมรุ่นเก่า ***
-        # เราจะสร้าง Dictionary เพื่อเก็บค่าเหล่านี้แล้วส่งเข้าไป
-        disabled_algorithms = {
-            'kex': ['diffie-hellman-group1-sha1'], # บางครั้งต้องระบุค่า default ที่เก่ามากๆ ด้วย
-            'mac': ['hmac-md5', 'hmac-sha1-96'],
-            'key': ['ssh-rsa']
-        }
-
+        # The connection parameters from your working script
         client.connect(
             hostname=ip,
-            username=username,
-            key_filename=key_filename,
-            # เพิ่มพารามิเตอร์ disabled_algorithms เพื่อบอกให้ Paramiko ยอมใช้อัลกอริทึมเก่า
-            # บางเวอร์ชันของ Paramiko อาจต้องใช้ชื่อพารามิเตอร์อื่น
-            # แต่ปกติจะใช้การตั้งค่า Transport โดยตรงแบบนี้
-            # เราจะสร้าง transport object เองเพื่อความแน่นอน
-            transport_factory=lambda: create_transport_with_legacy_algos(ip)
+            username=USERNAME,
+            pkey=PRIVATE_KEY,
+            look_for_keys=False,
+            allow_agent=False,
+            timeout=15,
+            disabled_algorithms=dict(
+                pubkeys=["rsa-sha2-256", "rsa-sha2-512"],
+                kex=[
+                    "diffie-hellman-group1-sha1", "diffie-hellman-group14-sha256",
+                    "diffie-hellman-group16-sha512", "diffie-hellman-group18-sha512",
+                    "diffie-hellman-group-exchange-sha256", "ecdh-sha2-nistp256",
+                    "ecdh-sha2-nistp384", "ecdh-sha2-nistp521",
+                    "curve25519-sha256@libssh.org", "curve25519-sha256",
+                ],
+                hostkeys=[
+                    "ssh-ed25519", "ecdsa-sha2-nistp256",
+                    "ecdsa-sha2-nistp384", "ecdsa-sha2-nistp521"
+                ],
+            ),
         )
+        print(f"✅ Successfully connected to {ip}")
 
         with client.invoke_shell() as ssh:
-            print(f"SUCCESS: Connected to {ip}")
-            
-            # ส่งคำสั่งต่างๆ
+            # --- Setup terminal and enter enable mode ---
             ssh.send("terminal length 0\n")
             time.sleep(1)
-            result = ssh.recv(2000).decode('ascii')
-            print(result)
+            ssh.recv(65535) # Clear initial buffer
 
-            ssh.send("sh ip int br\n")
-            time.sleep(2)
-            result = ssh.recv(2000).decode('ascii')
-            print(result)
+            # ssh.send("enable\n")
+            # time.sleep(1)
+            # ssh.recv(65535) # Clear buffer after 'enable'
+
+            # ssh.send(f"{PASSWORD}\n")
+            # time.sleep(1)
+            # output = ssh.recv(65535).decode('utf-8', 'ignore')
+            # if "#" not in output: # Check if we successfully entered enable mode
+            #     print(f"❌ Failed to enter enable mode on {ip}. Check password.")
+            #     continue # Skip to the next device
+
+            # print("✅ Entered enable mode successfully.")
+
+            # # --- Command 1: show ip interface brief ---
+            # print("--- Running: show ip interface brief ---")
+            # ssh.send("show ip interface brief\n")
+            # time.sleep(2)
+            # result_int_br = ssh.recv(65535).decode('utf-8', 'ignore')
+            # print(result_int_br)
+
+            # --- Command 2: show running-config ---
+            # print("\n--- Running: show running-config ---")
+            # ssh.send("show running-config\n")
+            # time.sleep(4) # Give more time for this long command
+            # result_run_config = ssh.recv(65535).decode('utf-8', 'ignore')
+            # print(result_run_config)
 
     except paramiko.AuthenticationException:
-        print(f"FAILED: Authentication failed for {ip}. Check username or SSH key.")
-    except paramiko.SSHException as e:
-        print(f"FAILED: SSH negotiation failed for {ip}. Error: {e}")
+        print(f"❌ Authentication failed for {ip}. Check username or SSH key.")
+    except (socket.timeout, TimeoutError):
+        print(f"❌ Connection timed out for {ip}. Device might be unreachable.")
     except Exception as e:
-        print(f"FAILED: An unexpected error occurred for {ip}. Error: {e}")
+        print(f"❌ An unexpected error occurred for {ip}: {e}")
     finally:
-        if client:
+        # Always close the connection
+        if client.get_transport() and client.get_transport().is_active():
             client.close()
-
-# Helper function to create a transport with specific algorithms
-def create_transport_with_legacy_algos(ip, port=22):
-    """
-    Creates a Paramiko transport object and manually enables legacy algorithms.
-    """
-    transport = paramiko.Transport((ip, port))
-    
-    # Kex (Key Exchange)
-    transport.get_security_options().kex = ('diffie-hellman-group14-sha1', 'diffie-hellman-group-exchange-sha1')
-    
-    # HostKey
-    transport.get_security_options().key_types = ('ssh-rsa',)
-
-    # MACs
-    transport.get_security_options().macs = ('hmac-sha1', 'hmac-sha1-96')
-    
-    # Ciphers (ถ้าจำเป็น)
-    # transport.get_security_options().ciphers = ('aes128-cbc', '3des-cbc')
-    
-    return transport
-
-
-print("\n--- Script finished ---")
+            print(f"✅ Connection to {ip} closed.")
