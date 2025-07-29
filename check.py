@@ -13,8 +13,8 @@ from datetime import datetime ### NEW ###
 # --- Configuration ---
 USERNAME = "admin"
 PASSWORD = "cisco"  # Enable password
-DEVICE_IPS = ["10.30.6.27"]
-#DEVICE_IPS = ["10.30.6.27", "172.31.21.2", "172.31.21.3", "172.31.21.4", "172.31.21.5"]
+#DEVICE_IPS = ["10.30.6.27"]
+DEVICE_IPS = ["10.30.6.42", "172.31.21.2", "172.31.21.3", "172.31.21.4", "172.31.21.5"]
 OUTPUT_FILENAME = "copy-running-config.txt" ### NEW: Define the output filename ###
 
 # --- Load SSH Private Key ---
@@ -70,43 +70,13 @@ with open(OUTPUT_FILENAME, 'w', encoding='utf-8') as backup_file:
             print(f"✅ Successfully connected to {ip}")
 
             with client.invoke_shell() as ssh:
-                # Setup terminal and enter enable mode
                 ssh.send("terminal length 0\n")
                 time.sleep(1)
                 ssh.recv(65535)
-            
-                ssh.send("enable\n")
+
+                ssh.send("wr\n")
                 time.sleep(1)
-                ssh.recv(65535)
-
-                ssh.send(f"{PASSWORD}\n")
-                time.sleep(1)
-                output = ssh.recv(65535).decode('utf-8', 'ignore')
-                if "#" not in output:
-                    print(f"❌ Failed to enter enable mode on {ip}. Check password.")
-                    continue
-
-                print("✅ Entered enable mode successfully.")
-
-                # Command 1: show ip interface brief (only print to screen)
-                print("\n--- [On Screen] show ip interface brief ---")
-                ssh.send("show ip interface brief\n")
-                time.sleep(2)
-                result_int_br = ssh.recv(65535).decode('utf-8', 'ignore')
-                print(result_int_br)
-
-                # Command 2: show running-config (save to file)
-                print("--- [To File] show running-config ---")
-                ssh.send("show running-config\n")
-                time.sleep(4)
-                result_run_config = ssh.recv(65535).decode('utf-8', 'ignore')
-                
-                # ### NEW: Write the output to the backup file ###
-                header = f"\n{'='*20} [Running Config for {ip}] {'='*20}\n\n"
-                backup_file.write(header)
-                backup_file.write(result_run_config)
-                print(f"✅ Configuration for {ip} has been saved to the file.")
-
+                print("✅ Write Out successfully.")
 
         except Exception as e:
             print(f"❌ An error occurred for {ip}: {e}")
@@ -116,4 +86,3 @@ with open(OUTPUT_FILENAME, 'w', encoding='utf-8') as backup_file:
                 print(f"✅ Connection to {ip} closed.")
 
 print(f"\n--- SCRIPT COMPLETE ---")
-print(f"All configurations have been backed up to '{OUTPUT_FILENAME}'.")
