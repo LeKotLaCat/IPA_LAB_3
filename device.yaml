@@ -1,0 +1,72 @@
+# devices.yml
+
+---
+# ข้อมูลการยืนยันตัวตนและ Path ของ Key
+credentials:
+  username: "admin"
+  key_file: "~/.ssh/id_rsa"
+
+# การตั้งค่า SSH พิเศษที่ต้องใช้
+connection_options:
+  disabled_algorithms:
+    pubkeys:
+      - "rsa-sha2-256"
+      - "rsa-sha2-512"
+    kex:
+      - "diffie-hellman-group1-sha1"
+      - "diffie-hellman-group14-sha256"
+      - "diffie-hellman-group16-sha512"
+      - "diffie-hellman-group18-sha512"
+      - "diffie-hellman-group-exchange-sha256"
+      - "ecdh-sha2-nistp256"
+      - "ecdh-sha2-nistp384"
+      - "ecdh-sha2-nistp521"
+      - "curve25519-sha256@libssh.org"
+      - "curve25519-sha256"
+    hostkeys:
+      - "ssh-ed25519"
+      - "ecdsa-sha2-nistp256"
+      - "ecdsa-sha2-nistp384"
+      - "ecdsa-sha2-nistp521"
+
+# รายการอุปกรณ์ทั้งหมด
+devices:
+  - name: "R1"
+    host: "172.31.21.4"
+    template: "r1_template.j2" # บอกสคริปต์ว่าจะใช้ template ไฟล์ไหน
+    loopback:
+      id: 0
+      ip: "10.1.1.1"
+    ospf:
+      process_id: 1
+      router_id: "10.1.1.1"
+      networks:
+        - network: "192.21.1.0"
+          wildcard: "0.0.0.255"
+          area: 0
+        - network: "192.21.2.0"
+          wildcard: "0.0.0.255"
+          area: 0
+
+  - name: "R2"
+    host: "172.31.21.5"
+    template: "r2_template.j2"
+    loopback:
+      id: 0
+      ip: "10.2.2.2"
+    ospf:
+      process_id: 1
+      router_id: "10.2.2.2"
+      networks:
+        - network: "192.21.2.0"
+          wildcard: "0.0.0.255"
+          area: 0
+        - network: "172.31.21.0"
+          wildcard: "0.0.0.15"
+          area: 0
+    nat:
+      outside_interface: "GigabitEthernet0/3"
+      inside_interfaces:
+        - "GigabitEthernet0/1"
+        - "GigabitEthernet0/2"
+      acl_id: 1

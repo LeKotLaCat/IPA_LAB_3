@@ -1,0 +1,176 @@
+S1
+
+S1#sh run
+Building configuration...
+
+Current configuration : 3970 bytes
+!
+! Last configuration change at 11:22:23 UTC Thu Jul 31 2025
+!
+version 15.2
+service timestamps debug datetime msec
+service timestamps log datetime msec
+no service password-encryption
+service compress-config
+!
+hostname S1
+!
+boot-start-marker
+boot-end-marker
+!
+!
+enable secret 5 $1$p75d$95zcXbEN934uO60t5YV7p/
+!
+username admin privilege 15 password 0 cisco
+no aaa new-model
+!
+!
+!
+!
+!
+no ip routing
+!
+!
+!
+ip domain-name ipa.com
+no ip cef
+no ipv6 cef
+!
+!
+!
+spanning-tree mode pvst
+spanning-tree extend system-id
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+interface GigabitEthernet0/0
+ switchport access vlan 99
+ switchport mode access
+ negotiation auto
+!
+interface GigabitEthernet0/1
+ switchport access vlan 101
+ switchport mode access
+ negotiation auto
+!
+interface GigabitEthernet0/2
+ negotiation auto
+!
+interface GigabitEthernet0/3
+ negotiation auto
+!
+interface GigabitEthernet1/0
+ negotiation auto
+!
+interface GigabitEthernet1/1
+ switchport access vlan 101
+ switchport mode access
+ negotiation auto
+!
+interface GigabitEthernet1/2
+ negotiation auto
+!
+interface GigabitEthernet1/3
+ negotiation auto
+!
+interface GigabitEthernet2/0
+ negotiation auto
+!
+interface GigabitEthernet2/1
+ negotiation auto
+!
+interface GigabitEthernet2/2
+ negotiation auto
+!
+interface GigabitEthernet2/3
+ negotiation auto
+!
+interface GigabitEthernet3/0
+ negotiation auto
+!
+interface GigabitEthernet3/1
+ negotiation auto
+!
+interface GigabitEthernet3/2
+ negotiation auto
+!
+interface GigabitEthernet3/3
+ negotiation auto
+!
+interface Vlan99
+ ip address 172.31.17.3 255.255.255.240
+ no ip route-cache
+!
+interface Vlan101
+ no ip address
+!
+ip forward-protocol nd
+!
+ip http server
+!
+ip ssh version 2
+ip ssh pubkey-chain
+  username LINUX
+   key-hash ssh-rsa D7F2E9AC397A66CC8747507ADE7E6D7C
+no ip ssh server authenticate user keyboard
+no ip ssh server authenticate user password
+ip ssh server algorithm encryption aes128-ctr aes192-ctr aes256-ctr
+ip ssh client algorithm encryption aes128-ctr aes192-ctr aes256-ctr
+!
+!
+!
+!
+!
+!
+control-plane
+!
+banner exec ^C
+**************************************************************************
+* IOSv is strictly limited to use for evaluation, demonstration and IOS  *
+* education. IOSv is provided as-is and is not supported by Cisco's      *
+* Technical Advisory Center. Any use or disclosure, in whole or in part, *
+* of the IOSv Software or Documentation to any third party for any       *
+* purposes is expressly prohibited except as otherwise authorized by     *
+* Cisco in writing.                                                      *
+**************************************************************************^C
+banner incoming ^C
+**************************************************************************
+* IOSv is strictly limited to use for evaluation, demonstration and IOS  *
+* education. IOSv is provided as-is and is not supported by Cisco's      *
+* Technical Advisory Center. Any use or disclosure, in whole or in part, *
+* of the IOSv Software or Documentation to any third party for any       *
+* purposes is expressly prohibited except as otherwise authorized by     *
+* Cisco in writing.                                                      *
+**************************************************************************^C
+banner login ^C
+**************************************************************************
+* IOSv is strictly limited to use for evaluation, demonstration and IOS  *
+* education. IOSv is provided as-is and is not supported by Cisco's      *
+* Technical Advisory Center. Any use or disclosure, in whole or in part, *
+* of the IOSv Software or Documentation to any third party for any       *
+* purposes is expressly prohibited except as otherwise authorized by     *
+* Cisco in writing.                                                      *
+**************************************************************************^C
+!
+line con 0
+line aux 0
+line vty 0 4
+ exec-timeout 0 0
+ logging synchronous
+ login local
+ transport input telnet ssh
+!
+!
+end

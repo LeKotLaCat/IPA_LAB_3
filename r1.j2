@@ -1,0 +1,18 @@
+{# Template สำหรับ R1 #}
+
+!
+! ===== Interface and Loopback Configuration =====
+!
+interface Loopback{{ loopback.id }}
+ vrf forwarding control-data
+ ip address {{ loopback.ip }} 255.255.255.255
+!
+! ===== OSPF Configuration =====
+!
+router ospf {{ ospf.process_id }} vrf control-data
+ router-id {{ ospf.router_id }}
+ {# วน Loop เพื่อสร้าง network statement ทั้งหมด #}
+ {% for net in ospf.networks %}
+ network {{ net.network }} {{ net.wildcard }} area {{ net.area }}
+ {% endfor %}
+!

@@ -1,0 +1,40 @@
+{# Template สำหรับ R2 #}
+
+!
+! ===== Interface and Loopback Configuration =====
+!
+interface Loopback{{ loopback.id }}
+ vrf forwarding control-data
+ ip address {{ loopback.ip }} 255.255.255.255
+!
+! ===== NAT/PAT Configuration =====
+!
+interface {{ nat.outside_interface }}
+ vrf forwarding control-data
+ ip address dhcp
+ ip nat outside
+ no shutdown
+!
+{# วน Loop เพื่อกำหนด ip nat inside ให้ทุก interface #}
+{% for iface in nat.inside_interfaces %}
+interface {{ iface }}
+ ip nat inside
+{% endfor %}
+!
+! ===== OSPF Configuration =====
+!
+router ospf {{ ospf.process_id }} vrf control-data
+ router-id {{ ospf.router_id }}
+ {# วน Loop เพื่อสร้าง network statement ทั้งหมด #}
+ {% for net in ospf.networks %}
+ network {{ net.network }} {{ net.wildcard }} area {{ net.area }}
+ {% endfor %}
+ passive-interface {{ nat.outside_interface }}
+ default-information originate
+!
+! ===== ACL and NAT Rule =====
+!
+no access-list {{ nat.acl_id }}
+access-list {{ nat.acl_id }} permit any
+ip nat inside source list {{ nat.acl_id }} interface {{ nat.outside_interface }} overload
+!

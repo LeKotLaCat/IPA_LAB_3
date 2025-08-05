@@ -1,0 +1,202 @@
+R2
+
+R2#sh run
+Building configuration...
+
+
+Current configuration : 4779 bytes
+!
+! Last configuration change at 12:06:02 UTC Thu Jul 31 2025
+!
+version 15.7
+service timestamps debug datetime msec
+service timestamps log datetime msec
+no service password-encryption
+!
+hostname R2
+!
+boot-start-marker
+boot-end-marker
+!
+!
+vrf definition control-data
+ !
+ address-family ipv4
+ exit-address-family
+!
+vrf definition management
+ !
+ address-family ipv4
+ exit-address-family
+!
+enable secret 5 $1$HJsA$yFU8qR.F3CLRCslvt3Z2L/
+!
+no aaa new-model
+!
+!
+!
+mmi polling-interval 60
+no mmi auto-configure
+no mmi pvc
+mmi snmp-timeout 180
+!
+!
+!
+!
+!
+no ip icmp rate-limit unreachable
+!
+!
+!
+!
+!
+!
+ip domain name ipa.com
+ip name-server vrf control-data 8.8.8.8
+ip name-server 192.168.122.1
+ip name-server 8.8.8.8
+ip cef
+no ipv6 cef
+!
+multilink bundle-name authenticated
+!
+!
+!
+!
+username admin privilege 15 password 0 cisco
+!
+redundancy
+!
+no cdp log mismatch duplex
+!
+ip tcp synwait-time 5
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+interface Loopback0
+ ip address 2.2.2.2 255.255.255.255
+!
+interface GigabitEthernet0/0
+ vrf forwarding management
+ ip address 172.31.17.5 255.255.255.240
+ duplex auto
+ speed auto
+ media-type rj45
+!
+interface GigabitEthernet0/1
+ vrf forwarding control-data
+ ip address 192.168.17.6 255.255.255.252
+ ip nat inside
+ ip virtual-reassembly in
+ duplex auto
+ speed auto
+ media-type rj45
+!
+interface GigabitEthernet0/2
+ vrf forwarding control-data
+ ip address 192.168.17.9 255.255.255.252
+ ip access-group 101 in
+ ip nat inside
+ ip virtual-reassembly in
+ duplex auto
+ speed auto
+ media-type rj45
+!
+interface GigabitEthernet0/3
+ vrf forwarding control-data
+ ip address dhcp
+ ip nat outside
+ ip virtual-reassembly in
+ duplex auto
+ speed auto
+ media-type rj45
+!
+router ospf 10 vrf control-data
+ network 2.2.2.2 0.0.0.0 area 0
+ network 192.168.17.4 0.0.0.3 area 0
+ network 192.168.17.8 0.0.0.3 area 0
+ default-information originate always
+!
+ip forward-protocol nd
+!
+!
+no ip http server
+no ip http secure-server
+ip dns view vrf control-data default
+ip dns server
+ip nat inside source list 1 interface GigabitEthernet0/3 vrf control-data overload
+ip route vrf control-data 0.0.0.0 0.0.0.0 192.168.122.1
+ip route vrf management 0.0.0.0 0.0.0.0 172.31.17.1
+ip ssh version 2
+ip ssh pubkey-chain
+  username LINUX
+   key-hash ssh-rsa D7F2E9AC397A66CC8747507ADE7E6D7C
+no ip ssh server authenticate user keyboard
+no ip ssh server authenticate user password
+!
+ipv6 ioam timestamp
+!
+!
+access-list 1 permit 192.168.17.0 0.0.0.3
+access-list 1 permit 192.168.17.8 0.0.0.3
+access-list 101 deny   tcp host 192.168.17.10 192.168.17.0 0.0.0.255 eq telnet
+access-list 101 deny   tcp host 192.168.17.10 192.168.17.0 0.0.0.255 eq 22
+access-list 101 permit ip any any
+!
+control-plane
+!
+banner exec ^C
+**************************************************************************
+* IOSv is strictly limited to use for evaluation, demonstration and IOS  *
+* education. IOSv is provided as-is and is not supported by Cisco's      *
+* Technical Advisory Center. Any use or disclosure, in whole or in part, *
+* of the IOSv Software or Documentation to any third party for any       *
+* purposes is expressly prohibited except as otherwise authorized by     *
+* Cisco in writing.                                                      *
+**************************************************************************^C
+banner incoming ^C
+**************************************************************************
+* IOSv is strictly limited to use for evaluation, demonstration and IOS  *
+* education. IOSv is provided as-is and is not supported by Cisco's      *
+* Technical Advisory Center. Any use or disclosure, in whole or in part, *
+* of the IOSv Software or Documentation to any third party for any       *
+* purposes is expressly prohibited except as otherwise authorized by     *
+* Cisco in writing.                                                      *
+**************************************************************************^C
+banner login ^C
+**************************************************************************
+* IOSv is strictly limited to use for evaluation, demonstration and IOS  *
+* education. IOSv is provided as-is and is not supported by Cisco's      *
+* Technical Advisory Center. Any use or disclosure, in whole or in part, *
+* of the IOSv Software or Documentation to any third party for any       *
+* purposes is expressly prohibited except as otherwise authorized by     *
+* Cisco in writing.                                                      *
+**************************************************************************^C
+!
+line con 0
+ exec-timeout 0 0
+ privilege level 15
+ logging synchronous
+line aux 0
+ exec-timeout 0 0
+ privilege level 15
+ logging synchronous
+line vty 0 4
+ exec-timeout 0 0
+ logging synchronous
+ login local
+ transport input telnet ssh
+!
+no scheduler allocate
+!
+end
